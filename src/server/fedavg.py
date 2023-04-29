@@ -36,7 +36,10 @@ class FedAvgServer:
         self.algo = algo
         self.unique_model = unique_model
         fix_random_seed(self.args.seed)
-        with open(_PROJECT_DIR / "data" / self.args.dataset / "args.json", "r") as f:
+
+        dataset_root = _PROJECT_DIR / "datasets" / self.args.dataset / self.args.name
+
+        with open(dataset_root /  "args.json", "r") as f:
             self.args.dataset_args = json.load(f)
 
         # get client party info
@@ -44,7 +47,7 @@ class FedAvgServer:
         self.test_clients: List[int] = None
         self.client_num_in_total: int = None
         try:
-            partition_path = _PROJECT_DIR / "data" / self.args.dataset / "partition.pkl"
+            partition_path = dataset_root / "partition.pkl"
             with open(partition_path, "rb") as f:
                 partition = pickle.load(f)
         except:
@@ -55,7 +58,7 @@ class FedAvgServer:
 
         # init model(s) parameters
         self.device = torch.device(
-            "cuda" if self.args.server_cuda and torch.cuda.is_available() else "cpu"
+            f"cuda:{self.args.device}" if self.args.server_cuda and torch.cuda.is_available() else "cpu"
         )
         self.model = MODEL_DICT[self.args.model](self.args.dataset).to(self.device)
         self.model.check_avaliability()
@@ -315,13 +318,18 @@ class FedAvgServer:
         self.check_convergence()
 
         # save log files
-        if not os.path.isdir(OUT_DIR / self.algo) and (
+        log_root = OUT_DIR / self.algo / self.args.name
+
+        if self.args.log_name is not None:
+          log_root = log_root / self.args.log_name
+
+        if not os.path.isdir(log_root) and (
             self.args.save_log or self.args.save_fig or self.args.save_metrics
         ):
-            os.makedirs(OUT_DIR / self.algo, exist_ok=True)
+            os.makedirs(log_root, exist_ok=True)
 
         if self.args.save_log:
-            self.logger.save_text(OUT_DIR / self.algo / f"{self.args.dataset}_log.html")
+            self.logger.save_text(log_root / f"{self.args.dataset}_log.html")
 
         if self.args.save_fig:
             import matplotlib
@@ -342,8 +350,7 @@ class FedAvgServer:
             plt.xlabel("Communication Rounds")
             plt.ylabel("Accuracy")
             plt.legend()
-            plt.savefig(
-                OUT_DIR / self.algo / f"{self.args.dataset}.jpeg", bbox_inches="tight"
+            plt.savefig(log_root / f"{self.args.dataset}.jpeg", bbox_inches="tight"
             )
         if self.args.save_metrics:
             import pandas as pd
@@ -356,7 +363,7 @@ class FedAvgServer:
                     accuracies.append(np.array(acc).T)
                     labels.append(label)
             pd.DataFrame(np.stack(accuracies, axis=1), columns=labels).to_csv(
-                OUT_DIR / self.algo / f"{self.args.dataset}_acc_metrics.csv",
+                log_root / f"{self.args.dataset}_acc_metrics.csv",
                 index=False,
             )
         # save trained model(s)
@@ -366,10 +373,10 @@ class FedAvgServer:
             )
             if self.unique_model:
                 torch.save(
-                    self.client_trainable_params, OUT_DIR / self.algo / model_name
+                    self.client_trainable_params, log_root / model_name
                 )
             else:
-                torch.save(self.model.state_dict(), OUT_DIR / self.algo / model_name)
+                torch.save(self.model.state_dict(), log_root / model_name)
 
 
 if __name__ == "__main__":

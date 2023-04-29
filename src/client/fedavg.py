@@ -23,13 +23,13 @@ class FedAvgClient:
     def __init__(self, model: DecoupledModel, args: Namespace, logger: Console):
         self.args = args
         self.device = torch.device(
-            "cuda" if self.args.client_cuda and torch.cuda.is_available() else "cpu"
+            f"cuda:{args.device}" if self.args.client_cuda and torch.cuda.is_available() else "cpu"
         )
         self.client_id: int = None
 
         # load dataset and clients' data indices
         try:
-            partition_path = _PROJECT_DIR / "data" / self.args.dataset / "partition.pkl"
+            partition_path = _PROJECT_DIR / "datasets" / self.args.dataset / self.args.name / "partition.pkl"
             with open(partition_path, "rb") as f:
                 partition = pickle.load(f)
         except:
@@ -44,7 +44,7 @@ class FedAvgClient:
         target_transform = None
 
         self.dataset = DATASETS[self.args.dataset](
-            root=_PROJECT_DIR / "data" / args.dataset,
+            root=_PROJECT_DIR / "datasets" / args.dataset,
             args=args.dataset_args,
             transform=transform,
             target_transform=target_transform,
@@ -55,7 +55,7 @@ class FedAvgClient:
         self.trainset: Subset = Subset(self.dataset, indices=[])
         self.testset: Subset = Subset(self.dataset, indices=[])
 
-        self.model = model.to(self.device)
+        self.model = model.to(self.device)#  torch.nn.DataParallel(model).to(self.device)
         self.local_epoch = self.args.local_epoch
         self.local_lr = self.args.local_lr
         self.criterion = torch.nn.CrossEntropyLoss().to(self.device)

@@ -55,6 +55,10 @@ def get_fedavg_argparser() -> ArgumentParser:
     parser.add_argument("--save_model", type=int, default=0)
     parser.add_argument("--save_fig", type=int, default=1)
     parser.add_argument("--save_metrics", type=int, default=1)
+    parser.add_argument("--name", type=str, default="default")
+    parser.add_argument("--device", type=int, default=0)
+    parser.add_argument("--log_name", type=str, default=None)
+
     return parser
 
 

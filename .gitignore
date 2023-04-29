@@ -22,6 +22,8 @@ data/usps
 data/tiny_imagenet
 data/cinic10
 
+datasets/
+
 # generated files
 out
 *.json
@@ -34,3 +36,7 @@ out
 *.jpeg
 *.csv
 *.html
+
+# venv
+fed/
+node_modules/

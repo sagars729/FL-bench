@@ -9,14 +9,15 @@ import numpy as np
 from path import Path
 
 from datasets import DATASETS
-from partition import dirichlet, iid_partition, randomly_assign_classes, allocate_shards
+from partition import dirichlet, iid_partition, randomly_assign_classes, allocate_shards, \
+  randomly_assign_classes_normal
 from util import prune_args, generate_synthetic_data, process_celeba, process_femnist
 
 _CURRENT_DIR = Path(__file__).parent.abspath()
 
 
 def main(args):
-    dataset_root = _CURRENT_DIR.parent / args.dataset
+    dataset_root = _CURRENT_DIR.parent.parent / "datasets" / args.dataset
 
     np.random.seed(args.seed)
     random.seed(args.seed)
@@ -56,6 +57,13 @@ def main(args):
                     ori_dataset=ori_dataset,
                     num_clients=args.client_num_in_total,
                     num_shards=args.shards,
+                )
+            elif args.classes_mean > 0:
+                partition, stats = randomly_assign_classes_normal(
+                    ori_dataset=ori_dataset,
+                    num_clients=args.client_num_in_total,
+                    num_classes_mean=args.classes_mean,
+                    num_classes_std=args.classes_std,
                 )
             else:
                 raise RuntimeError(
@@ -98,13 +106,18 @@ def main(args):
                 else:
                     partition["data_indices"][client_id] = {"train": [], "test": idx}
 
-    with open(_CURRENT_DIR.parent / args.dataset / "partition.pkl", "wb") as f:
+    partition_root = dataset_root / args.name
+    if not os.path.isdir(partition_root):
+        os.mkdir(partition_root)
+
+
+    with open(partition_root / "partition.pkl", "wb") as f:
         pickle.dump(partition, f)
 
-    with open(_CURRENT_DIR.parent / args.dataset / "all_stats.json", "w") as f:
+    with open(partition_root / "all_stats.json", "w") as f:
         json.dump(stats, f)
 
-    with open(_CURRENT_DIR.parent / args.dataset / "args.json", "w") as f:
+    with open(partition_root / "args.json", "w") as f:
         json.dump(prune_args(args), f)
 
 
@@ -143,6 +156,9 @@ if __name__ == "__main__":
     parser.add_argument("--fraction", type=float, default=0.5)
     # For random assigning classes only
     parser.add_argument("-c", "--classes", type=int, default=0)
+    # For randomly assigning classes with a normal distribution only
+    parser.add_argument("-cm", "--classes-mean", type=float, default=0)
+    parser.add_argument("-cs", "--classes-std", type=float, default=0)
     # For allocate shards only
     parser.add_argument("-s", "--shards", type=int, default=0)
     # For dirichlet distribution only
@@ -164,5 +180,7 @@ if __name__ == "__main__":
         choices=["byclass", "bymerge", "letters", "balanced", "digits", "mnist"],
         default="byclass",
     )
+
+    parser.add_argument("-n", "--name", type=str, default="default")
     args = parser.parse_args()
     main(args)
